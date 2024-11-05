@@ -1,45 +1,54 @@
-import vocabulary from "./vocabulary.json";
-
+let vocabulary = [];
 let usedVocabulary = new Set();
 let ran_key;
 let currentVocab;
 let round = 0; // Runde 0 für Deutsch->Englisch, Runde 1 für Englisch->Deutsch
 
-// Push new Vocable to vocabulary
-function addVocabulary() {
-  // Eingabefelder abrufen
-  const germanText = document.getElementById("germanText").value.trim();
-  const englishText = document.getElementById("englishText").value.trim();
+// DOM-Elemente abrufen
+const text = document.getElementById("text");
+const word = document.getElementById("word");
+const germanText = document.getElementById("germanText");
 
-  // Überprüfen, ob beide Eingabefelder ausgefüllt sind
-  if (germanText && englishText) {
-    // Neue Vokabel zum Array hinzufügen
-    vocabulary.push({ german: germanText, english: englishText });
+// JSON-Datei laden und Vokabeln initialisieren
+fetch("./vocabulary.json")
+  .then((response) => response.json())
+  .then((data) => {
+    // JSON-Daten und localStorage-Daten kombinieren
+    const storedVocabulary =
+      JSON.parse(localStorage.getItem("vocabulary")) || [];
+    vocabulary = data.concat(storedVocabulary);
+
+    // Starten des ersten Abfragedurchlaufs
+    nextVocabulary();
+  })
+  .catch((error) => console.error("Fehler beim Laden der JSON-Datei:", error));
+
+// Vokabel hinzufügen
+function addVocabulary(german, english) {
+  if (german && english) {
+    vocabulary.push({ german, english });
 
     // Speichern der neuen Vokabeln im localStorage
     localStorage.setItem("vocabulary", JSON.stringify(vocabulary));
 
-    // Eingabefelder zurücksetzen
-    document.getElementById("germanText").value = "";
+    germanText.value = "";
     document.getElementById("englishText").value = "";
-
-    // Aktualisierte Vokabelliste anzeigen
-    render();
   } else {
     alert(
       "Bitte füllen Sie beide Felder aus, um eine neue Vokabel hinzuzufügen."
     );
   }
 }
-// Funktion zum Starten oder Zurücksetzen des Lernens
+
+// Starten oder Zurücksetzen des Lernens
 function resetVocabulary() {
   round++;
   usedVocabulary.clear();
   nextVocabulary();
 }
 
+// Nächste Vokabel
 function nextVocabulary() {
-  // Prüfen, ob alle Vokabeln abgefragt wurden
   if (usedVocabulary.size === vocabulary.length) {
     text.innerHTML =
       "Glückwunsch! Alle Vokabeln wurden richtig übersetzt. Die Runde wird neu gestartet!";
@@ -47,7 +56,6 @@ function nextVocabulary() {
     return;
   }
 
-  // Zufällige Vokabel auswählen, die noch nicht abgefragt wurde
   do {
     currentVocab = vocabulary[Math.floor(Math.random() * vocabulary.length)];
   } while (
@@ -55,38 +63,37 @@ function nextVocabulary() {
     usedVocabulary.has(currentVocab.english)
   );
 
-  // Aktualisiere das anzuzeigende Wort je nach Runde (Deutsch->Englisch oder Englisch->Deutsch)
-  if (round % 2 == 0) {
-    ran_key = currentVocab.german;
+  if (round % 2 === 0) {
+    ran_key = currentVocab.german.toLowerCase();
     word.innerHTML = `${currentVocab.english}?`;
   } else {
-    ran_key = currentVocab.english;
+    ran_key = currentVocab.english.toLowerCase();
     word.innerHTML = `${currentVocab.german}?`;
   }
 }
 
+// Antwort überprüfen, Vergleich in Kleinbuchstaben
 function compare() {
-  if (germanText.value === ran_key) {
-    text.innerHTML = "Richtig!!";
-    usedVocabulary.add(currentVocab.german); // Füge die Vokabel zur Set-Liste hinzu
+  const answer = germanText.value.trim().toLowerCase();
+  const correctAnswer = ran_key; // richtiger Wert in Kleinbuchstaben
+
+  if (answer === correctAnswer) {
+    text.innerHTML = "Richtig!";
+    usedVocabulary.add(currentVocab.german);
   } else {
-    text.innerHTML =
-      germanText.value +
-      " ist falsch! Die richtige Übersetzung ist: " +
-      (round === 0 ? currentVocab.german : currentVocab.english);
+    const solution =
+      round % 2 === 0 ? currentVocab.german : currentVocab.english;
+    text.innerHTML = `${germanText.value} ist falsch! Die richtige Übersetzung ist: ${solution}`;
   }
 
   germanText.value = "";
   nextVocabulary();
 }
 
-// Funktion zum Anzeigen der Vokabelliste (optional)
+// Vokabelliste anzeigen auf add.HTML
 function render() {
   vocabularyList.innerHTML = "";
   for (let item of vocabulary) {
     vocabularyList.innerHTML += `<li>${item.german} - ${item.english}</li>`;
   }
 }
-
-// Starten des ersten Abfragedurchlaufs
-nextVocabulary();
