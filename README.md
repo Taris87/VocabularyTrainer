@@ -77,14 +77,9 @@ Eine moderne Web-Anwendung zum Lernen und Üben von englischn und deutschen Voka
 - Erfolgsquoten
 - Persönliche Bestleistungen
 
-
-## 👥 Beitragen
-
-
-
 ## 📧 Kontakt
 
-Bei Fragen oder Anregungen kannst du gerne ein Issue erstellen oder dich direkt an uns wenden.
+Bei Fragen oder Anregungen kannst du gerne ein Issue erstellen oder dich direkt an mich wenden.
 
 ---
 
