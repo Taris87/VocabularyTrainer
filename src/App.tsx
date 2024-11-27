@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { HashRouter as Router, Routes, Route } from 'react-router-dom';
 import { Navigation } from './components/Navigation';
 import { Home } from './pages/Home';
@@ -9,8 +9,35 @@ import { Profile } from './pages/Profile';
 import { Auth } from './pages/Auth';
 import { PersonalVocabulary } from './pages/PersonalVocabulary';
 import { PrivateRoute } from './components/PrivateRoute';
+import { auth } from './config/firebase';
+import { useAuthStore } from './store/authStore';
+import { onAuthStateChanged } from 'firebase/auth';
 
 function App() {
+  const { setUser } = useAuthStore();
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setUser({
+          uid: user.uid,
+          email: user.email || '',
+          progress: {
+            level: 'beginner',
+            score: 0,
+            wordsLearned: 0,
+            learningStreak: 0,
+            longestStreak: 0
+          }
+        });
+      } else {
+        setUser(null);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [setUser]);
+
   return (
     <Router>
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50">

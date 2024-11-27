@@ -3,24 +3,27 @@ import { getAuth, browserLocalPersistence, setPersistence } from 'firebase/auth'
 import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyASmgCHGflpXXsz88epIQj_ru7rOfYB-N0",
-  authDomain: "vokabelapp-e8e30.firebaseapp.com",
-  projectId: "vokabelapp-e8e30",
-  storageBucket: "vokabelapp-e8e30.appspot.com",
-  messagingSenderId: "1089368381244",
-  appId: "1:1089368381244:web:b1a5a3ad0180a81652b039",
-  measurementId: "G-PBJWH45E20"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
-console.log('Firebase Config:', firebaseConfig); // Debug log
-
+// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
+export const db = getFirestore(app);
 
-// Set persistence to local to avoid cross-site redirect issues
+// Set persistence to local
 setPersistence(auth, browserLocalPersistence)
   .catch((error) => {
-    console.error("Auth persistence error:", error);
+    console.error("Error setting auth persistence:", error);
   });
 
-export const db = getFirestore(app);
+// Debug log for initialization
+auth.onAuthStateChanged((user) => {
+  console.log("Auth state changed:", user ? "User logged in" : "No user");
+});
