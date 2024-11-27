@@ -7,16 +7,16 @@ import { Brain, ChevronRight, ChevronLeft } from 'lucide-react';
 import { loadVocabulary } from '../db/vocabulary';
 
 interface UserProgress {
-  lastDifficulty: 'beginner' | 'intermediate' | 'advanced' | 'all';
+  lastDifficulty: 'beginner' | 'intermediate' | 'advanced' | 'all' | 'personal';
   lastWordIndex: number;
 }
 
 export const Learn = () => {
-  const { user, updateUserProfile } = useAuthStore();
+  const { user } = useAuthStore();
   const [vocabulary, setVocabulary] = useState<Vocabulary[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showTranslation, setShowTranslation] = useState(false);
-  const [selectedDifficulty, setSelectedDifficulty] = useState<'beginner' | 'intermediate' | 'advanced' | 'all'>('all');
+  const [selectedDifficulty, setSelectedDifficulty] = useState<'beginner' | 'intermediate' | 'advanced' | 'all' | 'personal'>('all');
   const [isLoading, setIsLoading] = useState(true);
 
   // Load user progress
@@ -44,7 +44,7 @@ export const Learn = () => {
             typeof data.lastDifficulty === 'string' && 
             typeof data.lastWordIndex === 'number') {
           const progress = data as UserProgress;
-          const validDifficulty = ['beginner', 'intermediate', 'advanced', 'all'].includes(progress.lastDifficulty) 
+          const validDifficulty = ['beginner', 'intermediate', 'advanced', 'all', 'personal'].includes(progress.lastDifficulty) 
             ? progress.lastDifficulty 
             : 'all';
           setSelectedDifficulty(validDifficulty);
@@ -82,9 +82,14 @@ export const Learn = () => {
       if (isMounted) setIsLoading(true);
       
       try {
-        const words = selectedDifficulty === 'all' 
-          ? await loadVocabulary() 
-          : await loadVocabulary(selectedDifficulty);
+        let words;
+        if (selectedDifficulty === 'personal') {
+          words = await loadVocabulary('personal');
+        } else {
+          words = selectedDifficulty === 'all' 
+            ? await loadVocabulary() 
+            : await loadVocabulary(selectedDifficulty);
+        }
           
         if (isMounted) {
           setVocabulary(words);
@@ -133,40 +138,21 @@ export const Learn = () => {
     }
   }, [vocabulary, currentIndex]);
 
-  const saveUserProgress = (currentIndex: number) => {
-    if (!user) return;
-
-    // Update Firestore document with current learning progress
-    const userDocRef = doc(db, 'users', user.uid);
-    setDoc(userDocRef, {
-      progress: {
-        currentWordIndex: currentIndex,
-        difficulty: selectedDifficulty
-      }
-    }, { merge: true });
-  };
+  // Reset currentIndex when difficulty changes
+  useEffect(() => {
+    setCurrentIndex(0);
+  }, [selectedDifficulty]);
 
   const handleNextWord = () => {
     if (!user || currentIndex >= vocabulary.length - 1) return;
-
-    // Update learning progress
-    updateUserProfile(user.uid, {
-      progress: {
-        wordsLearned: (user.progress?.wordsLearned || 0) + 1,
-        score: (user.progress?.score || 0) + 1
-      }
-    });
-
     setCurrentIndex(prev => prev + 1);
     setShowTranslation(false);
-    saveUserProgress(currentIndex + 1);
   };
 
   const handlePreviousWord = () => {
     if (currentIndex > 0) {
       setCurrentIndex(prev => prev - 1);
       setShowTranslation(false);
-      saveUserProgress(currentIndex - 1);
     }
   };
 
@@ -174,75 +160,116 @@ export const Learn = () => {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <div className="mb-8 text-center">
-        <h1 className="text-3xl font-bold text-gray-900 mb-4">Learn Vocabulary</h1>
-        <div className="flex justify-center space-x-4">
-          {(['all', 'beginner', 'intermediate', 'advanced'] as const).map((difficulty) => (
+      <div className="flex flex-col items-center mb-8">
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6">Learn Vocabulary</h1>
+        
+        <div className="w-full flex flex-wrap justify-center gap-2 px-4">
+          {(['all','beginner', 'intermediate', 'advanced', 'personal'] as const).map((difficulty) => (
             <button
               key={difficulty}
               onClick={() => setSelectedDifficulty(difficulty)}
-              className={`px-4 py-2 rounded-lg ${
+              className={`px-3 py-2 rounded-lg text-sm md:text-base transition-colors ${
                 selectedDifficulty === difficulty
                   ? 'bg-indigo-600 text-white'
                   : 'bg-white text-gray-700 hover:bg-indigo-50'
-              } transition-colors`}
+              }`}
             >
-              {difficulty === 'all' ? 'All Levels' : difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}
+              {difficulty === 'personal' ? 'Personal' :
+               difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}
             </button>
           ))}
         </div>
       </div>
 
       {isLoading ? (
-        <div className="text-center text-gray-600">
-          Loading vocabulary...
+        <div className="flex justify-center items-center min-h-[400px]">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-600"></div>
         </div>
-      ) : vocabulary.length > 0 && currentWord ? (
-        <div className="bg-white rounded-xl shadow-lg p-8">
-          <div className="flex items-center justify-between mb-8">
-            <button
-              onClick={handlePreviousWord}
-              disabled={currentIndex === 0}
-              className="p-2 rounded-full hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <ChevronLeft className="h-6 w-6" />
-            </button>
-            <div className="text-center">
-              <Brain className="h-12 w-12 text-indigo-600 mx-auto mb-2" />
-              <p className="text-sm text-gray-500">
+      ) : vocabulary.length > 0 ? (
+        <div className="space-y-6 px-4">
+          <div className="bg-white rounded-xl shadow-lg p-6 md:p-8">
+            <div className="flex justify-between items-center mb-4">
+              <span className="text-sm md:text-base text-gray-600">
                 Word {currentIndex + 1} of {vocabulary.length}
-              </p>
+              </span>
+              <span className="text-sm md:text-base font-medium text-indigo-600">
+                {selectedDifficulty}
+              </span>
             </div>
-            <button
-              onClick={handleNextWord}
-              disabled={currentIndex === vocabulary.length - 1}
-              className="p-2 rounded-full hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <ChevronRight className="h-6 w-6" />
-            </button>
+
+            <div className="space-y-6">
+              <div className="text-center">
+                <h2 className="text-xl md:text-2xl font-bold mb-4">
+                  {currentWord.german}
+                </h2>
+                {showTranslation ? (
+                  <p className="text-lg md:text-xl text-gray-600">
+                    {currentWord.english}
+                  </p>
+                ) : (
+                  <button
+                    onClick={() => setShowTranslation(true)}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm md:text-base"
+                  >
+                    Show Translation
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between mt-8">
+                <button
+                  onClick={handlePreviousWord}
+                  disabled={currentIndex === 0}
+                  className={`flex items-center space-x-1 px-4 py-2 rounded-lg text-sm md:text-base transition-colors ${
+                    currentIndex === 0
+                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                      : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                  }`}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  <span>Previous</span>
+                </button>
+
+                <button
+                  onClick={handleNextWord}
+                  disabled={currentIndex === vocabulary.length - 1}
+                  className={`flex items-center space-x-1 px-4 py-2 rounded-lg text-sm md:text-base transition-colors ${
+                    currentIndex === vocabulary.length - 1
+                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                      : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                  }`}
+                >
+                  <span>Next</span>
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
           </div>
 
-          <div className="text-center mb-8">
-            <h2 className="text-2xl font-bold mb-4">{currentWord.german}</h2>
-            <button
-              onClick={() => setShowTranslation(!showTranslation)}
-              className="px-4 py-2 bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200 transition-colors"
-            >
-              {showTranslation ? 'Hide' : 'Show'} Translation
-            </button>
-            {showTranslation && (
-              <p className="mt-4 text-xl text-gray-700">{currentWord.english}</p>
-            )}
-          </div>
-
-          <div className="text-center text-sm text-gray-500">
-            <p>Category: {currentWord.category}</p>
-            <p>Difficulty: {currentWord.difficulty}</p>
+          <div className="bg-white rounded-xl shadow-lg p-6 md:p-8">
+            <h3 className="text-lg md:text-xl font-semibold mb-4 flex items-center">
+              <Brain className="h-5 w-5 text-indigo-600 mr-2" />
+              Learning Progress
+            </h3>
+            <div className="space-y-4">
+              <div className="flex justify-between text-sm md:text-base text-gray-600">
+                <span>Words Learned</span>
+                <span>{currentIndex + 1} / {vocabulary.length}</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div
+                  className="bg-indigo-600 h-2 rounded-full transition-all"
+                  style={{
+                    width: `${((currentIndex + 1) / vocabulary.length) * 100}%`,
+                  }}
+                ></div>
+              </div>
+            </div>
           </div>
         </div>
       ) : (
-        <div className="text-center text-gray-600">
-          <p>No vocabulary found for the selected difficulty level.</p>
+        <div className="text-center py-8">
+          <p className="text-lg md:text-xl text-gray-600">No vocabulary words available for this difficulty level.</p>
         </div>
       )}
     </div>

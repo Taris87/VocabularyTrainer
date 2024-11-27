@@ -15,52 +15,54 @@ function App() {
     <Router>
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50">
         <Navigation />
-        <div className="container mx-auto px-4 py-8">
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route
-              path="/personal"
-              element={
-                <PrivateRoute>
-                  <PersonalVocabulary />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/learn"
-              element={
-                <PrivateRoute>
-                  <Learn />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/quiz"
-              element={
-                <PrivateRoute>
-                  <Quiz />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/flashcards"
-              element={
-                <PrivateRoute>
-                  <Flashcards />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/profile"
-              element={
-                <PrivateRoute>
-                  <Profile />
-                </PrivateRoute>
-              }
-            />
-          </Routes>
-        </div>
+        <main className="pt-16 min-h-screen">
+          <div className="container mx-auto px-4 py-4 md:py-8">
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route
+                path="/personal"
+                element={
+                  <PrivateRoute>
+                    <PersonalVocabulary />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/learn"
+                element={
+                  <PrivateRoute>
+                    <Learn />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/quiz"
+                element={
+                  <PrivateRoute>
+                    <Quiz />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/flashcards"
+                element={
+                  <PrivateRoute>
+                    <Flashcards />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/profile"
+                element={
+                  <PrivateRoute>
+                    <Profile />
+                  </PrivateRoute>
+                }
+              />
+            </Routes>
+          </div>
+        </main>
       </div>
     </Router>
   );

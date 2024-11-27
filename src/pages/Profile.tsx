@@ -2,32 +2,37 @@ import { useEffect, useState } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { loadVocabulary } from '../db/vocabulary';
 import { getLearnedVocabulary } from '../db/learnedVocabulary';
+import { getPrivateVocabulary } from '../db/privateVocabulary'; // Import getPrivateVocabulary
 import { Brain, Trophy, Target, Book, TrendingUp } from 'lucide-react';
 
 interface LevelProgress {
   beginner: number;
   intermediate: number;
   advanced: number;
+  personal: number;
 }
 
 interface UserStats {
   totalWordsLearned: number;
   quizAccuracy: number;
   streak: number;
+  longestStreak: number;
   lastActive: Date | null;
 }
 
 export const Profile = () => {
-  const { user } = useAuthStore();
+  const { user, checkAndUpdateStreak } = useAuthStore();
   const [levelProgress, setLevelProgress] = useState<LevelProgress>({
     beginner: 0,
     intermediate: 0,
-    advanced: 0
+    advanced: 0,
+    personal: 0
   });
   const [stats, setStats] = useState<UserStats>({
     totalWordsLearned: 0,
     quizAccuracy: 0,
     streak: 0,
+    longestStreak: 0,
     lastActive: null
   });
   const [loading, setLoading] = useState(true);
@@ -36,33 +41,73 @@ export const Profile = () => {
     const fetchProgress = async () => {
       if (!user) return;
       
+      // Überprüfe und aktualisiere die Lernserie
+      checkAndUpdateStreak();
+      
       setLoading(true);
       try {
         // Fetch vocabulary for each level
-        const beginnerWords = await loadVocabulary('beginner');
-        const intermediateWords = await loadVocabulary('intermediate');
-        const advancedWords = await loadVocabulary('advanced');
+        const [beginnerWords, intermediateWords, advancedWords, personalWords] = await Promise.all([
+          loadVocabulary('beginner'),
+          loadVocabulary('intermediate'),
+          loadVocabulary('advanced'),
+          getPrivateVocabulary(user.uid)
+        ]);
 
-        // Fetch learned vocabulary
-        const learnedBeginnerWords = await getLearnedVocabulary('1', 'beginner');
-        const learnedIntermediateWords = await getLearnedVocabulary('1', 'intermediate');
-        const learnedAdvancedWords = await getLearnedVocabulary('1', 'advanced');
+        // Fetch learned vocabulary with specific difficulty
+        const [learnedBeginnerWords, learnedIntermediateWords, learnedAdvancedWords, learnedPersonalWords] = await Promise.all([
+          getLearnedVocabulary(user.uid, 'beginner'),
+          getLearnedVocabulary(user.uid, 'intermediate'),
+          getLearnedVocabulary(user.uid, 'advanced'),
+          getLearnedVocabulary(user.uid, 'personal')
+        ]);
 
-        // Calculate progress for each level
-        setLevelProgress({
-          beginner: Math.round((learnedBeginnerWords.length / beginnerWords.length) * 100) || 0,
-          intermediate: Math.round((learnedIntermediateWords.length / intermediateWords.length) * 100) || 0,
-          advanced: Math.round((learnedAdvancedWords.length / advancedWords.length) * 100) || 0
+        // Debug logging for personal vocabulary
+        console.log('Personal vocabulary details:', {
+          available: {
+            count: personalWords.length,
+            words: personalWords
+          },
+          learned: {
+            count: learnedPersonalWords.length,
+            words: learnedPersonalWords
+          }
         });
 
+        // Calculate progress for each level
+        const calculateProgress = (learned: number, total: number, difficulty: string) => {
+          console.log(`Calculating ${difficulty} progress:`, {
+            learned,
+            total,
+            percentage: total > 0 ? Math.round((learned / total) * 100) : 0
+          });
+          
+          if (total === 0) return 0;
+          return Math.round((learned / total) * 100);
+        };
+
+        const progress = {
+          beginner: calculateProgress(learnedBeginnerWords.length, beginnerWords.length, 'beginner'),
+          intermediate: calculateProgress(learnedIntermediateWords.length, intermediateWords.length, 'intermediate'),
+          advanced: calculateProgress(learnedAdvancedWords.length, advancedWords.length, 'advanced'),
+          personal: calculateProgress(learnedPersonalWords.length, personalWords.length, 'personal')
+        };
+
+        console.log('Final progress calculations:', progress);
+        setLevelProgress(progress);
+
         // Calculate overall stats
+        const totalLearned = 
+          learnedBeginnerWords.length +
+          learnedIntermediateWords.length +
+          learnedAdvancedWords.length +
+          learnedPersonalWords.length;
+
         setStats({
-          totalWordsLearned: 
-            learnedBeginnerWords.length +
-            learnedIntermediateWords.length +
-            learnedAdvancedWords.length,
+          totalWordsLearned: totalLearned,
           quizAccuracy: Math.round(user.progress?.quizAccuracy || 0),
           streak: user.progress?.learningStreak || 0,
+          longestStreak: user.progress?.longestStreak || 0,
           lastActive: new Date()
         });
       } catch (error) {
@@ -72,7 +117,7 @@ export const Profile = () => {
     };
 
     fetchProgress();
-  }, [user]);
+  }, [user, user?.progress, checkAndUpdateStreak]);
 
   if (loading) {
     return (
@@ -93,7 +138,7 @@ export const Profile = () => {
             </span>
           </div>
           <div>
-            <h1 className="text-2xl font-bold">{user?.email || 'Benutzer'}</h1>
+            <h1 className="text-2xl font-bold">{user?.email ? user.email.split('@')[0] : 'Benutzer'}</h1>
             <p className="text-gray-600">Lernender seit {user?.metadata?.creationTime ? new Date(user.metadata.creationTime).toLocaleDateString() : 'kürzlich'}</p>
           </div>
         </div>
@@ -120,7 +165,12 @@ export const Profile = () => {
             <Target className="w-6 h-6 text-green-500" />
             <h3 className="text-lg font-semibold">Lernserie</h3>
           </div>
-          <p className="text-3xl font-bold">{stats.streak} Tage</p>
+          <p className="text-3xl font-bold">
+            {stats.streak} Tage {""}
+            <span className="text-sm text-gray-500">
+              (Rekord: {user?.progress?.longestStreak || stats.streak})
+            </span>
+          </p>
         </div>
         <div className="bg-white rounded-xl shadow-lg p-6">
           <div className="flex items-center space-x-3 mb-4">
@@ -174,6 +224,18 @@ export const Profile = () => {
               ></div>
             </div>
           </div>
+          <div>
+            <div className="flex justify-between mb-2">
+              <span className="font-medium">Persönlich</span>
+              <span className="text-indigo-600">{levelProgress.personal}%</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2.5">
+              <div
+                className="bg-indigo-600 h-2.5 rounded-full transition-all duration-300"
+                style={{ width: `${levelProgress.personal}%` }}
+              ></div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -199,6 +261,10 @@ export const Profile = () => {
           {levelProgress.advanced === 100 && (
             <p className="text-gray-700">
               • Fantastisch! Du hast alle Level gemeistert. Versuche, dein Wissen durch regelmäßige Wiederholungen zu festigen.
+            </p>
+          )} {levelProgress.personal === 100 && (
+            <p className="text-gray-700">
+              • Fantastisch! Du hast alle deine wunsch Vokabeln gelernt. Versuche, sie weiterhin zu festigen.
             </p>
           )}
           <p className="text-gray-700">

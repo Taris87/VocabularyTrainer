@@ -6,6 +6,11 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   return {
     plugins: [react()],
+    base: '/VocabularyTrainer/',
+    build: {
+      outDir: 'docs',
+      emptyOutDir: true
+    },
     optimizeDeps: {
       exclude: ['lucide-react'],
     },

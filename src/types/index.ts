@@ -10,7 +10,9 @@ export interface User {
     score: number;
     wordsLearned: number;
     learningStreak: number;
+    longestStreak: number;
     quizAccuracy?: number;
+    lastActiveDate?: string;  // Datum der letzten Aktivität
   };
 }
 

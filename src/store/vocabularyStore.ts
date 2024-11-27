@@ -2,13 +2,15 @@ import { create } from 'zustand';
 import { collection, query, where, getDocs, addDoc, deleteDoc, doc, updateDoc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { Vocabulary } from '../types';
+import { getPrivateVocabulary } from '../db/privateVocabulary';
+import { useAuthStore } from './authStore';
 
 interface VocabularyStore {
   vocabulary: Vocabulary[];
   loading: boolean;
   error: string | null;
-  selectedDifficulty: 'beginner' | 'intermediate' | 'advanced';
-  setSelectedDifficulty: (difficulty: 'beginner' | 'intermediate' | 'advanced') => void;
+  selectedDifficulty: 'beginner' | 'intermediate' | 'advanced' | 'personal';
+  setSelectedDifficulty: (difficulty: 'beginner' | 'intermediate' | 'advanced' | 'personal') => void;
   fetchVocabulary: () => Promise<void>;
   addVocabulary: (newWord: Omit<Vocabulary, 'id'>) => Promise<void>;
   deleteVocabulary: (id: string) => Promise<void>;
@@ -29,16 +31,26 @@ export const useVocabularyStore = create<VocabularyStore>((set, get) => ({
   fetchVocabulary: async () => {
     set({ loading: true, error: null });
     try {
-      const q = query(
-        collection(db, 'vocabulary'),
-        where('difficulty', '==', get().selectedDifficulty)
-      );
+      let vocabData: Vocabulary[] = [];
       
-      const querySnapshot = await getDocs(q);
-      const vocabData = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      } as Vocabulary));
+      if (get().selectedDifficulty === 'personal') {
+        const user = useAuthStore.getState().user;
+        if (!user) {
+          throw new Error('User must be logged in to access personal vocabulary');
+        }
+        vocabData = await getPrivateVocabulary(user.uid);
+      } else {
+        const q = query(
+          collection(db, 'vocabulary'),
+          where('difficulty', '==', get().selectedDifficulty)
+        );
+        
+        const querySnapshot = await getDocs(q);
+        vocabData = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        } as Vocabulary));
+      }
       
       set({ vocabulary: vocabData });
     } catch (error) {
@@ -52,10 +64,18 @@ export const useVocabularyStore = create<VocabularyStore>((set, get) => ({
   addVocabulary: async (newWord) => {
     set({ loading: true, error: null });
     try {
-      await addDoc(collection(db, 'vocabulary'), {
-        ...newWord,
-        difficulty: get().selectedDifficulty
-      });
+      if (get().selectedDifficulty === 'personal') {
+        const user = useAuthStore.getState().user;
+        if (!user) {
+          throw new Error('User must be logged in to add personal vocabulary');
+        }
+        await addDoc(collection(db, 'privateVocabulary', user.uid, 'words'), newWord);
+      } else {
+        await addDoc(collection(db, 'vocabulary'), {
+          ...newWord,
+          difficulty: get().selectedDifficulty
+        });
+      }
       await get().fetchVocabulary();
     } catch (error) {
       set({ error: 'Failed to add vocabulary' });
@@ -68,7 +88,15 @@ export const useVocabularyStore = create<VocabularyStore>((set, get) => ({
   deleteVocabulary: async (id) => {
     set({ loading: true, error: null });
     try {
-      await deleteDoc(doc(db, 'vocabulary', id));
+      if (get().selectedDifficulty === 'personal') {
+        const user = useAuthStore.getState().user;
+        if (!user) {
+          throw new Error('User must be logged in to delete personal vocabulary');
+        }
+        await deleteDoc(doc(db, 'privateVocabulary', user.uid, 'words', id));
+      } else {
+        await deleteDoc(doc(db, 'vocabulary', id));
+      }
       await get().fetchVocabulary();
     } catch (error) {
       set({ error: 'Failed to delete vocabulary' });
@@ -81,25 +109,34 @@ export const useVocabularyStore = create<VocabularyStore>((set, get) => ({
   updateVocabulary: async (id, updates) => {
     set({ loading: true, error: null });
     try {
-      const vocabRef = doc(db, 'vocabulary', id);
-      
-      // Check if the document exists
-      const docSnap = await getDoc(vocabRef);
-      
-      if (!docSnap.exists()) {
-        // If the document doesn't exist, create it with the updates
-        const currentVocab = get().vocabulary.find(v => v.id === id);
-        if (!currentVocab) {
-          throw new Error('Vocabulary not found');
+      if (get().selectedDifficulty === 'personal') {
+        const user = useAuthStore.getState().user;
+        if (!user) {
+          throw new Error('User must be logged in to update personal vocabulary');
         }
-        
-        await setDoc(vocabRef, {
-          ...currentVocab,
-          ...updates
-        });
-      } else {
-        // Update existing document
+        const vocabRef = doc(db, 'privateVocabulary', user.uid, 'words', id);
         await updateDoc(vocabRef, updates);
+      } else {
+        const vocabRef = doc(db, 'vocabulary', id);
+        
+        // Check if the document exists
+        const docSnap = await getDoc(vocabRef);
+        
+        if (!docSnap.exists()) {
+          // If the document doesn't exist, create it with the updates
+          const currentVocab = get().vocabulary.find(v => v.id === id);
+          if (!currentVocab) {
+            throw new Error('Vocabulary not found');
+          }
+          
+          await setDoc(vocabRef, {
+            ...currentVocab,
+            ...updates
+          });
+        } else {
+          // Update existing document
+          await updateDoc(vocabRef, updates);
+        }
       }
       
       await get().fetchVocabulary();

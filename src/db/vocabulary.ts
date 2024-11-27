@@ -1,6 +1,8 @@
 import { Vocabulary } from '../types';
 import { collection, getDocs, query, where, Query, DocumentData, addDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
+import { getPrivateVocabulary } from './privateVocabulary';
+import { useAuthStore } from '../store/authStore';
 
 export const defaultVocabulary: Vocabulary[] = [
   // Beginner words
@@ -70,8 +72,21 @@ export const defaultVocabulary: Vocabulary[] = [
   { id: '60', german: 'Zusammenarbeit', english: 'Collaboration', difficulty: 'advanced', category: 'Business' }
 ];
 
-export const loadVocabulary = async (difficulty?: 'beginner' | 'intermediate' | 'advanced'): Promise<Vocabulary[]> => {
+export const loadVocabulary = async (difficulty?: 'beginner' | 'intermediate' | 'advanced' | 'personal'): Promise<Vocabulary[]> => {
   try {
+    // Handle personal vocabulary
+    if (difficulty === 'personal') {
+      const user = useAuthStore.getState().user;
+      if (!user) {
+        throw new Error('User must be logged in to access personal vocabulary');
+      }
+      const personalWords = await getPrivateVocabulary(user.uid);
+      if (personalWords.length === 0) {
+        throw new Error('No personal vocabulary found');
+      }
+      return personalWords;
+    }
+
     const vocabularyRef = collection(db, 'vocabulary');
     
     // Check if we need to seed the vocabulary
@@ -92,14 +107,20 @@ export const loadVocabulary = async (difficulty?: 'beginner' | 'intermediate' | 
     }
 
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({
+    const words = querySnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
     } as Vocabulary));
 
+    if (words.length === 0) {
+      throw new Error('No vocabulary found for the selected difficulty level');
+    }
+
+    return words;
+
   } catch (error) {
     console.error('Error in loadVocabulary:', error);
-    throw new Error('Failed to load vocabulary');
+    throw error;
   }
 };
 

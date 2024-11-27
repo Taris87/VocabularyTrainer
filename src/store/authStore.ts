@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { User } from '../types';
 import { getUser, setUser as setStorageUser, initializeUser, updateUserProgress } from '../services/storage';
 import { updateUserProfile as updateUserProfileDB } from '../db/users';
+import { updateStreak } from '../services/streakService';
 
 interface AuthState {
   user: User | null;
@@ -16,9 +17,11 @@ interface AuthState {
       score?: number;
       wordsLearned?: number;
       learningStreak?: number;
+      longestStreak?: number;
       quizAccuracy?: number;
     };
   }) => Promise<void>;
+  checkAndUpdateStreak: () => void;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -38,7 +41,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         score: 0,
         wordsLearned: 0,
         learningStreak: 0,
-        quizAccuracy: 0
+        longestStreak: 0,
+        quizAccuracy: 0,
+        lastActiveDate: new Date().toISOString()
       }
     };
     set({ user });
@@ -67,6 +72,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       };
       set({ user: updatedUser });
       setStorageUser(updatedUser);
+    }
+  },
+  checkAndUpdateStreak: () => {
+    const currentUser = get().user;
+    if (currentUser) {
+      const updatedUser = updateStreak(currentUser);
+      set({ user: updatedUser });
     }
   }
 }));

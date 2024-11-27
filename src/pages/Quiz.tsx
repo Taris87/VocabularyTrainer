@@ -56,7 +56,7 @@ export const Quiz = () => {
     }
   }, [vocabulary]);
 
-  const handleDifficultyChange = (difficulty: 'beginner' | 'intermediate' | 'advanced') => {
+  const handleDifficultyChange = (difficulty: 'beginner' | 'intermediate' | 'advanced' | 'personal') => {
     setSelectedDifficulty(difficulty);
     setQuizResult(null);
     setSelectedAnswer('');
@@ -144,7 +144,7 @@ export const Quiz = () => {
     }
   };
 
-  const handleFinishQuiz = (finalResult: QuizResult) => {
+  const handleFinishQuiz = async (finalResult: QuizResult) => {
     if (!user) {
       console.error('No user found');
       return;
@@ -153,10 +153,9 @@ export const Quiz = () => {
     const correctAnswers = finalResult.correct;
     const accuracy = (correctAnswers / questions.length) * 100;
 
-    // Update user profile with quiz results
     try {
-      // Since we're using a fixed uid '1' for local storage
-      updateUserProfile('1', {
+      // Update user profile with quiz results
+      await updateUserProfile(user.uid, {
         progress: {
           score: (user.progress?.score || 0) + correctAnswers,
           quizAccuracy: accuracy,
@@ -165,19 +164,32 @@ export const Quiz = () => {
         }
       });
 
+      console.log('Quiz results:', {
+        correctWords: finalResult.correctWords,
+        selectedDifficulty,
+        userId: user.uid
+      });
+
       // Add correct words to learned vocabulary collection
-      finalResult.correctWords.forEach(async word => {
+      for (const word of finalResult.correctWords) {
         const vocabWord = vocabulary.find(v => v.german === word.german);
         if (vocabWord) {
           try {
-            await addLearnedVocabulary('1', vocabWord);
+            const learnedWord = {
+              id: vocabWord.id,
+              german: word.german,
+              english: word.english,
+              difficulty: selectedDifficulty
+            };
+            console.log('Saving word as learned:', learnedWord);
+            await addLearnedVocabulary(user.uid, learnedWord);
           } catch (error) {
-            console.error(`Error marking word as learned: ${word.german}`, error);
+            console.error('Error saving learned word:', error);
           }
         }
-      });
+      }
     } catch (error) {
-      console.error('Error updating progress:', error);
+      console.error('Error in handleFinishQuiz:', error);
     }
   };
 
@@ -229,21 +241,22 @@ export const Quiz = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8 max-w-4xl">
       {/* Difficulty Selection */}
-      <div className="flex justify-center mb-8">
-        <div className="inline-flex rounded-lg border border-gray-200 bg-white p-1">
-          {['beginner', 'intermediate', 'advanced'].map((difficulty) => (
+      <div className="flex justify-center mb-4 sm:mb-8">
+        <div className="inline-flex flex-wrap justify-center gap-2 sm:gap-0 sm:flex-nowrap rounded-lg border border-gray-200 bg-white p-1 w-full sm:w-auto">
+          {(['beginner', 'intermediate', 'advanced', 'personal'] as const).map((difficulty) => (
             <button
               key={difficulty}
-              onClick={() => handleDifficultyChange(difficulty as 'beginner' | 'intermediate' | 'advanced')}
-              className={`px-4 py-2 rounded-md ${
+              onClick={() => handleDifficultyChange(difficulty)}
+              className={`px-3 sm:px-4 py-2 text-sm sm:text-base rounded-lg flex-1 sm:flex-none whitespace-nowrap ${
                 selectedDifficulty === difficulty
                   ? 'bg-indigo-600 text-white'
                   : 'text-gray-600 hover:text-indigo-600'
               }`}
             >
-              {difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}
+              {difficulty === 'personal' ? 'Persönlich' :
+               difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}
             </button>
           ))}
         </div>
@@ -251,25 +264,25 @@ export const Quiz = () => {
 
       {/* Quiz Questions */}
       {currentQuestionIndex < questions.length && (
-        <div className="bg-white rounded-xl shadow-lg p-8">
-          <div className="mb-8">
+        <div className="bg-white rounded-xl shadow-lg p-4 sm:p-8">
+          <div className="mb-6 sm:mb-8">
             <div className="flex justify-between items-center mb-4">
-              <span className="text-sm text-gray-500">
+              <span className="text-xs sm:text-sm text-gray-500">
                 Frage {currentQuestionIndex + 1} von {questions.length}
               </span>
-              <span className="text-sm font-medium text-indigo-600">
+              <span className="text-xs sm:text-sm font-medium text-indigo-600">
                 {selectedDifficulty}
               </span>
             </div>
-            <h2 className="text-2xl font-bold text-center mb-8">
+            <h2 className="text-xl sm:text-2xl font-bold text-center mb-6 sm:mb-8">
               {questions[currentQuestionIndex]?.vocabulary.german}
             </h2>
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               {questions[currentQuestionIndex]?.options.map((option, index) => (
                 <button
                   key={index}
                   onClick={() => handleOptionSelect(option)}
-                  className={`w-full p-4 text-left rounded-lg transition-colors ${
+                  className={`w-full p-3 sm:p-4 text-left text-sm sm:text-base rounded-lg transition-colors ${
                     selectedAnswer === option
                       ? 'bg-indigo-600 text-white'
                       : 'bg-gray-50 hover:bg-gray-100'
@@ -285,7 +298,7 @@ export const Quiz = () => {
             <button
               onClick={() => handleAnswer(selectedAnswer)}
               disabled={!selectedAnswer}
-              className={`px-6 py-3 rounded-lg transition-colors ${
+              className={`w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-3 text-sm sm:text-base rounded-lg transition-colors ${
                 selectedAnswer
                   ? 'bg-indigo-600 text-white hover:bg-indigo-700'
                   : 'bg-gray-200 text-gray-400 cursor-not-allowed'
@@ -299,28 +312,28 @@ export const Quiz = () => {
 
       {/* Quiz Result */}
       {currentQuestionIndex >= questions.length && quizResult && (
-        <div className="bg-white rounded-xl shadow-lg p-8">
-          <div className="text-center mb-8">
-            <h2 className="text-2xl font-bold mb-2">Quiz beendet!</h2>
-            <p className="text-xl mb-2">
+        <div className="bg-white rounded-xl shadow-lg p-4 sm:p-8">
+          <div className="text-center mb-6 sm:mb-8">
+            <h2 className="text-xl sm:text-2xl font-bold mb-2">Quiz beendet!</h2>
+            <p className="text-lg sm:text-xl mb-2">
               {getScoreMessage(quizResult.correct, quizResult.total)}
             </p>
-            <p className="text-lg text-gray-600">
+            <p className="text-base sm:text-lg text-gray-600">
               Richtig beantwortet: {quizResult.correct} von {quizResult.total}
             </p>
           </div>
 
-          <div className="space-y-8">
+          <div className="space-y-6 sm:space-y-8">
             {quizResult.correctWords.length > 0 && (
-              <div className="bg-white p-6 rounded-xl border border-gray-200">
-                <h3 className="text-xl font-semibold mb-4 text-green-700 flex items-center">
+              <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-200">
+                <h3 className="text-lg sm:text-xl font-semibold mb-4 text-green-700 flex items-center">
                   <span className="mr-2">✓</span> Richtige Antworten ({quizResult.correctWords.length})
                 </h3>
-                <div className="grid gap-4">
+                <div className="grid gap-3 sm:gap-4">
                   {quizResult.correctWords.map((word, index) => (
-                    <div key={index} className="bg-green-50 p-4 rounded-lg border border-green-100">
-                      <p className="text-lg font-semibold mb-2">Deutsches Wort: {word.german}</p>
-                      <p className="text-green-700">Englische Übersetzung: {word.english}</p>
+                    <div key={index} className="bg-green-50 p-3 sm:p-4 rounded-lg border border-green-100">
+                      <p className="text-base sm:text-lg font-semibold mb-1 sm:mb-2">Deutsches Wort: {word.german}</p>
+                      <p className="text-sm sm:text-base text-green-700">Englische Übersetzung: {word.english}</p>
                     </div>
                   ))}
                 </div>
@@ -328,16 +341,16 @@ export const Quiz = () => {
             )}
 
             {quizResult.incorrectWords.length > 0 && (
-              <div className="bg-white p-6 rounded-xl border border-gray-200">
-                <h3 className="text-xl font-semibold mb-4 text-red-700 flex items-center">
+              <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-200">
+                <h3 className="text-lg sm:text-xl font-semibold mb-4 text-red-700 flex items-center">
                   <span className="mr-2">✗</span> Falsche Antworten ({quizResult.incorrectWords.length})
                 </h3>
-                <div className="grid gap-4">
+                <div className="grid gap-3 sm:gap-4">
                   {quizResult.incorrectWords.map((word, index) => (
-                    <div key={index} className="bg-red-50 p-4 rounded-lg border border-red-100">
-                      <p className="text-lg font-semibold mb-2">Deutsches Wort: {word.german}</p>
-                      <p className="text-green-700 mb-1">Richtige Lösung: {word.english}</p>
-                      <p className="text-red-700">Deine Antwort: {word.userAnswer}</p>
+                    <div key={index} className="bg-red-50 p-3 sm:p-4 rounded-lg border border-red-100">
+                      <p className="text-base sm:text-lg font-semibold mb-1 sm:mb-2">Deutsches Wort: {word.german}</p>
+                      <p className="text-sm sm:text-base text-green-700 mb-1">Richtige Lösung: {word.english}</p>
+                      <p className="text-sm sm:text-base text-red-700">Deine Antwort: {word.userAnswer}</p>
                     </div>
                   ))}
                 </div>
@@ -345,12 +358,12 @@ export const Quiz = () => {
             )}
           </div>
 
-          <div className="text-center mt-8">
+          <div className="text-center mt-6 sm:mt-8">
             <button
               onClick={handleRestart}
-              className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors inline-flex items-center"
+              className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors inline-flex items-center justify-center"
             >
-              <RefreshCw className="w-5 h-5 mr-2" />
+              <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
               Quiz neu starten
             </button>
           </div>

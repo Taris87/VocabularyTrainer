@@ -28,7 +28,7 @@ export const Home = () => {
   return (
     <div className="max-w-4xl mx-auto">
       <h1 className="text-4xl font-bold text-gray-900 mb-8 text-center">
-        Welcome back, {user.email}!
+        Welcome back, {user?.email ? user.email.split('@')[0] : 'User'}!
       </h1>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">

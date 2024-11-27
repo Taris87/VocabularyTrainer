@@ -11,6 +11,7 @@ export const defaultUser: User = {
     score: 0,
     wordsLearned: 0,
     learningStreak: 0,
+    longestStreak: 0,
     quizAccuracy: 0
   }
 };

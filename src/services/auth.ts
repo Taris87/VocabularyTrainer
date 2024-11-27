@@ -20,7 +20,8 @@ export const signUp = async (email: string, password: string): Promise<User> => 
       level: 'beginner',
       score: 0,
       wordsLearned: 0,
-      learningStreak: 0
+      learningStreak: 0,
+      longestStreak: 0
     }
   };
 
