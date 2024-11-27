@@ -24,7 +24,7 @@ Eine moderne Web-Anwendung zum Lernen und Üben von englischn und deutschen Voka
 1. **Installation**
    ```bash
    # Repository klonen
-   git clone [repository-url]
+   git clone https://github.com/Taris87/VocabularyTrainer.git
 
    # In das Projektverzeichnis wechseln
    cd VocabularyTrainer
