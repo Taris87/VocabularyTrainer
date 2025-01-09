@@ -19,6 +19,9 @@ export const Auth = () => {
     e.preventDefault();
     setError('');
     setLoading(true);
+    if (e instanceof FirebaseError) {
+      setError(e.message);
+    }
 
     try {
       const user = isLogin 

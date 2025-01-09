@@ -73,8 +73,8 @@ export const Home = () => {
       </div>
 
       <div className="bg-white p-6 rounded-xl shadow-md">
-        <h2 className="text-2xl font-semibold mb-4">Your Progress</h2>
-        <div className="grid grid-cols-3 gap-4">
+        <h2 className="text-2xl font-semibold mb-6 justify-center flex">Your Progress</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="text-center">
             <p className="text-3xl font-bold text-indigo-600">
               {user.progress.wordsLearned}

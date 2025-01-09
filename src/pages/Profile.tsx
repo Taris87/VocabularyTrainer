@@ -83,7 +83,8 @@ export const Profile = () => {
           });
           
           if (total === 0) return 0;
-          return Math.round((learned / total) * 100);
+          const percentage = Math.round((learned / total) * 100);
+          return Math.min(percentage, 100); // Stelle sicher, dass der Wert nicht über 100% hinausgeht
         };
 
         const progress = {

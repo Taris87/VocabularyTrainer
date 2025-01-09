@@ -44,7 +44,7 @@ export const PersonalVocabulary: React.FC = () => {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [setUser, user?.progress]);
 
   useEffect(() => {
     const loadVocabularies = async () => {
