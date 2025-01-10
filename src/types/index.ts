@@ -26,6 +26,7 @@ export interface Vocabulary {
   userId?: string;
   learned?: boolean;
   lastModified?: Date;
+  createdAt?: Date | null;
 }
 
 export interface FlashCard {

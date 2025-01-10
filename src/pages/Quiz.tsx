@@ -85,7 +85,7 @@ export const Quiz = () => {
         options,
         correctAnswer: word.english
       };
-    });
+    }); 
 
     setQuestions(questions);
     setCurrentQuestionIndex(0);

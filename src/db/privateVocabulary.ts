@@ -1,4 +1,4 @@
-import { collection, addDoc, deleteDoc, doc, getDocs, query, where, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, deleteDoc, doc, getDocs, query, where, updateDoc, writeBatch } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { Vocabulary } from '../types';
 
@@ -60,6 +60,32 @@ export const deletePrivateVocabulary = async (
     await deleteDoc(doc(db, 'privateVocabulary', vocabularyId));
   } catch (error) {
     console.error('Error deleting private vocabulary:', error);
+    throw error;
+  }
+};
+
+// Delete all private vocabulary words for a user
+export const deleteAllPrivateVocabulary = async (userId: string): Promise<void> => {
+  
+  try {
+    // Query for all vocabulary entries belonging to the user
+    const q = query(
+      collection(db, 'privateVocabulary'),
+      where('userId', '==', userId)
+    );
+
+    const querySnapshot = await getDocs(q);
+    const batch = writeBatch(db); // Create a batch for deleting documents
+
+    // Iterate over the documents and add them to the batch for deletion
+    querySnapshot.forEach(doc => {
+      batch.delete(doc.ref);
+    });
+
+    // Commit the batch operation
+    await batch.commit();
+  } catch (error) {
+    console.error('Error deleting all private vocabulary:', error);
     throw error;
   }
 };
